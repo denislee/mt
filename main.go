@@ -20,6 +20,7 @@ import (
 	"gioui.org/font/gofont"
 	"gioui.org/io/clipboard"
 	"gioui.org/io/key"
+	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -633,6 +634,24 @@ func (u *UI) layout(gtx layout.Context) layout.Dimensions {
 	u.pwMu.Lock()
 	modal := u.pwPending
 	u.pwMu.Unlock()
+
+	// Global "q" / Esc to quit. Suppress while the password modal is open so
+	// typing the letter q in the password field doesn't close the app.
+	if modal == nil {
+		for {
+			ev, ok := gtx.Event(
+				key.Filter{Name: "Q"},
+				key.Filter{Name: key.NameEscape},
+			)
+			if !ok {
+				break
+			}
+			if ke, ok := ev.(key.Event); ok && ke.State == key.Press {
+				logf("key: %q pressed, quitting", ke.Name)
+				u.window.Perform(system.ActionClose)
+			}
+		}
+	}
 
 	// Suppress underlying button events while the password modal is open so
 	// clicks on the dimmed background don't trigger another mount/unmount.
