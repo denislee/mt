@@ -85,7 +85,7 @@ func stripSudoNoise(s string) string {
 
 // mountAt builds fstype-appropriate options so the current user has read/write.
 // Foreign filesystems (NTFS / FAT / exFAT / ISO / HFS+) honor uid/gid/umask at
-// mount time; native UNIX filesystems use real permissions, so we chown the
+// mount time (APFS needs the linux-apfs-rw module); native UNIX filesystems use real permissions, so we chown the
 // mountpoint to the invoking user after the mount succeeds.
 func (u *UI) mountAt(dev, target, fstype string) (string, error) {
 	uid := os.Getuid()
@@ -114,6 +114,11 @@ func (u *UI) mountAt(dev, target, fstype string) (string, error) {
 		opts = []string{fmt.Sprintf("uid=%d,gid=%d,umask=022,ro", uid, gid)}
 	case "hfsplus", "hfs":
 		opts = []string{fmt.Sprintf("uid=%d,gid=%d,umask=022,force", uid, gid)}
+	case "apfs":
+		// linux-apfs-rw (apfs-dkms) mounts read-only by default; its write
+		// support ("readwrite") is experimental and can corrupt the container.
+		driverType = "apfs"
+		opts = []string{fmt.Sprintf("uid=%d,gid=%d", uid, gid)}
 	default:
 		// ext2/3/4, btrfs, xfs, f2fs, etc. — native Unix permissions.
 		needChown = true
